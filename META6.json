@@ -11,6 +11,9 @@
   "provides": {
     "FileSystem::React": "lib/FileSystem/React.rakumod"
   },
+  "depends": [
+    "Grammars::QuotedTerms"
+  ],
   "test-depends": [
     "FileSystem::Helpers"
   ]

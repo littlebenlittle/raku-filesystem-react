@@ -1,6 +1,8 @@
 
 unit package FileSystem::React:auth<github:littlebenlittle>:ver<0.0.0>;
 
+use Grammars::QuotedTerms;
+
 class Loop {
     has Str:D    @.cmd   is required;
     has IO::Path $.watch is required;
@@ -73,14 +75,16 @@ sub establish-watches(IO::Path $target) {
 sub MAIN(
     Str:D $cmd;           #= command to run
     IO() :$dir = $*CWD;   #= target to watch
-    Bool :$*verbose;
+    Bool :$*verbose;      #= enable verbose output
 ) is export(:MAIN) {
     say "Watching $dir";
-    my @cmd = $cmd.split: /\s+/;
+    my Str:D @cmd =
+        Grammars::QuotedTerms.parse($cmd).made
+        // die "cannot parse as command: $cmd" unless @cmd;
     my $loop = FileSystem::React::Loop.new: @cmd, :watch($dir);
     react {
-        my $signals = SIGHUP.join(SIGINT).join(SIGTERM);
-        whenever $loop.stdout.lines { .say }
+        my $signals = signal(SIGHUP, SIGINT, SIGTERM);
+        whenever $loop.stdout.lines { .say  }
         whenever $loop.stderr.lines { .note }
         once whenever $signals {
             $loop.kill: SIGHUP;
