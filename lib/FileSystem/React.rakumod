@@ -4,45 +4,47 @@ unit package FileSystem::React:auth<github:littlebenlittle>:ver<0.0.0>;
 class Loop {
     has Str:D    @.cmd   is required;
     has IO::Path $.watch is required;
-    has Supplier:D $!kill   is required;
-    has Supplier:D $!reset  is required;
-    has Supplier:D $!stdout is required;
-    has Supplier:D $!stderr is required;
-    submethod BUILD(:@!cmd, :$!watch) {
-        $!kill   = Supplier.new;
-        $!reset  = Supplier.new;
-        $!stdout = Supplier.new;
-        $!stderr = Supplier.new;
-    }
+    has Supplier:D $!kill   = Supplier.new;
+    has Supplier:D $!reset  = Supplier.new;
+    has Supplier:D $!stdout = Supplier.new;
+    has Supplier:D $!stderr = Supplier.new;
+    has Supplier:D $!ready  = Supplier.new;
+    submethod BUILD(:@!cmd, :$!watch) { }
     method new(@cmd, IO() :$watch is required) {
         self.bless(:@cmd, :$watch)
     }
     method start (-->Promise)  {
         Promise.start: {
             my $continue = True;
-            my $count = 0;
             while $continue {
-                $count++;
-                my $watch = IO::Notification.watch-path: $.watch;
                 react {
                     my $proc = Proc::Async.new: @.cmd;
-                    my $done = False;
-                    whenever $watch { $.reset }
-                    whenever $proc.stdout { $!stdout.emit: $_ }
-                    whenever $proc.stderr { $!stderr.emit: $_ }
-                    whenever $!reset.Supply { $proc.kill: $_ }
+                    my $watch = IO::Notification.watch-path: $.watch;
+                    whenever $!reset.Supply {
+                        $proc.kill: $_
+                    }
                     whenever $!kill.Supply { 
                         $continue = False;
                         $proc.kill: $_;
                     }
+                    whenever $watch {
+                        $.reset
+                    }
+                    whenever $proc.stdout { $!stdout.emit: $_ }
+                    whenever $proc.stderr { $!stderr.emit: $_ }
                     whenever $proc.start {
                         done unless $continue;
-                        whenever $watch { done }
+                        whenever $watch {
+                            done
+                        }
                         whenever $!reset.Supply { done }
                         whenever $!kill.Supply {
                             $continue = False;
                             done
                         }
+                    }
+                    whenever Promise.in(0.5) {
+                        $!ready.emit: Any;
                     }
                 }
             }
@@ -54,6 +56,7 @@ class Loop {
     multi method reset($signal) { $!reset.emit: $signal }
     method stdout { $!stdout.Supply }
     method stderr { $!stderr.Supply }
+    method ready  { $!ready.Supply }
 }
 
 #| Run a command each time a directory or file changes
