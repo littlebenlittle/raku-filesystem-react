@@ -19,20 +19,21 @@ class Loop {
             while $continue {
                 react {
                     my $proc = Proc::Async.new: @.cmd;
-                    my $watch = IO::Notification.watch-path: $.watch;
-                    whenever $!reset.Supply {
-                        $proc.kill: $_
-                    }
+                    my $watch = establish-watches $.watch;
+                    whenever $!reset.Supply { $proc.kill: $_ }
                     whenever $!kill.Supply { 
                         $continue = False;
                         $proc.kill: $_;
                     }
                     whenever $watch {
-                        $.reset
+                        $!stderr.emit: "{$_.event}: {$_.path}";
+                        $.reset;
                     }
                     whenever $proc.stdout { $!stdout.emit: $_ }
                     whenever $proc.stderr { $!stderr.emit: $_ }
+                    note "# Running:   {@.cmd.join: ' '}" if $*verbose;
                     whenever $proc.start {
+                        note "# exited {.exitcode}" if $*verbose;
                         done unless $continue;
                         whenever $watch {
                             done
@@ -43,7 +44,7 @@ class Loop {
                             done
                         }
                     }
-                    whenever Promise.in(0.5) {
+                    whenever Promise.in(0.25) {
                         $!ready.emit: Any;
                     }
                 }
@@ -59,10 +60,20 @@ class Loop {
     method ready  { $!ready.Supply }
 }
 
+sub establish-watches(IO::Path $target) {
+    note "# Establishing watches for: {$target.absolute}" if $*verbose;
+    my $watch = $target.watch;
+    if $target.d {
+        $watch .= merge(establish-watches($_)) for $target.dir;
+    }
+    return $watch;
+}
+
 #| Run a command each time a directory or file changes
 sub MAIN(
     Str:D $cmd;           #= command to run
     IO() :$dir = $*CWD;   #= target to watch
+    Bool :$*verbose;
 ) is export(:MAIN) {
     say "Watching $dir";
     my @cmd = $cmd.split: /\s+/;
