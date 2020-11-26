@@ -1,0 +1,8 @@
+name: FileSystem::React
+url-safe: raku-filesystem-react
+version: 0.0.0
+description: react to filesystem events
+author:
+  name: Ben Little
+  email: ben.little@benlittle.dev
+  github: littlebenlittle

@@ -1,0 +1,17 @@
+{
+  "meta-version": "0",
+  "name": "FileSystem::React",
+  "version": "0.0.0",
+  "auth": "github:littlebenlittle",
+  "description": "react to filesystem events",
+  "source-url": "https://github.com/littlebenlittle/raku-filesystem-react.git",
+  "perl": "6.d",
+  "authors": [ "Ben Little <ben.little@benlittle.dev>" ],
+  "license": "Artistic-2.0",
+  "provides": {
+    "FileSystem::React": "lib/FileSystem/React.rakumod"
+  },
+  "test-depends": [
+    "FileSystem::Helpers"
+  ]
+}
